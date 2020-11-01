@@ -1,62 +1,103 @@
 class Drink {
-    static COKE: number = 0;
-    static DIET_COKE: number = 1;
-    static TEA: number = 2;
+    private kind: DrinkList;
 
-    private kind: number;
-
-    constructor(kind: number) {
+    constructor(kind: DrinkList) {
         this.kind = kind;
     }
 
-    getKind(): number {
+    getKind(): DrinkList {
         return this.kind;
     }
 }
 
+const DrinkList = {
+    COKE: 0,
+    DIET_COKE: 1,
+    TEA: 2
+} as const;
+type DrinkList = typeof DrinkList[keyof typeof DrinkList];
+
+class Payment {
+    handredAmount: number;
+    fiveHandredAmount: number;
+    constructor(handredAmount: number, fiveHandredAmount: number) {
+        this.handredAmount = handredAmount;
+        this.fiveHandredAmount = fiveHandredAmount;
+    }
+    total(): number {
+        return this.handredAmount * 100 + this.fiveHandredAmount * 500;
+    }
+}
+
+class DrinkStock {
+    kind: DrinkList;
+    stock: number;
+    constructor(kind: DrinkList, stock: number) {
+        this.kind = kind;
+        this.stock = stock;
+    }
+
+    isEmpty(): boolean {
+        return this.stock == 0;
+    }
+
+    reduce(): DrinkStock{
+        return new DrinkStock(this.kind, this.stock - 1);
+    }
+
+    to_string(): string {
+        return `kind: ${this.kind}, stock: ${this.stock}`;
+    }
+}
+
 class VendingMachine {
-    private quantityOfCoke = 5; // コーラの在庫数
-    private quantityOfDietCoke = 5; // ダイエットコーラの在庫数
-    private quantityOfTea = 5; // お茶の在庫数
+    private quantityOfCoke = new DrinkStock(DrinkList.COKE, 5); // コーラの在庫数
+    private quantityOfDietCoke = new DrinkStock(DrinkList.DIET_COKE, 5); // ダイエットコーラの在庫数
+    private quantityOfTea = new DrinkStock(DrinkList.TEA, 5); // お茶の在庫数
     private numberOf100Yen = 10; // 100円玉の在庫
     private charge = 0; // お釣り
 
-    buy(i: number, kindOfDrink: number ): Drink {
-        if ((kindOfDrink == Drink.COKE) && (this.quantityOfDietCoke == 0)) {
-            this.charge += i;
+    buy(payment: Payment, kindOfDrink: DrinkList): Drink {
+        if ((payment.total() != 100) && (payment.total() != 500)) {
+            this.charge += payment.total();
             return null;
         }
 
-        if ((kindOfDrink == Drink.COKE) && (this.quantityOfCoke == 0)) {
-            this.charge += i;
+        if ((kindOfDrink == DrinkList.COKE) && (this.quantityOfCoke.isEmpty())) {
+            this.charge += payment.total();
             return null;
-        } else if ((kindOfDrink == Drink.DIET_COKE) && (this.quantityOfDietCoke == 0)) {
-            this.charge += i;
+        }
+
+        if ((kindOfDrink == DrinkList.COKE) && (this.quantityOfCoke.isEmpty())) {
+            this.charge += payment.total();
             return null;
-        } else if ((kindOfDrink == Drink.TEA) && (this.quantityOfTea == 0)) {
-            this.charge += i;
+        } else if ((kindOfDrink == DrinkList.DIET_COKE) && (this.quantityOfDietCoke.isEmpty())) {
+            this.charge += payment.total();
+            return null;
+        } else if ((kindOfDrink == DrinkList.TEA) && (this.quantityOfTea.isEmpty())) {
+            this.charge += payment.total();
             return null;
         }
 
         // 釣り銭不足
-        if (i == 500 && this.numberOf100Yen < 4) {
-            this.charge += i;
+        if (payment.total() == 500 && this.numberOf100Yen < 4) {
+            this.charge += payment.total();
             return null;
         }
 
-        if (i == 100) {
+        if (payment.total() == 100) {
             this.numberOf100Yen++;
-        } else if (i == 500) {
-            this.charge += (i - 100);
-            this.numberOf100Yen -= (i - 100) / 100;
+        } else if (payment.total() == 500) {
+            this.charge += (payment.total() - 100);
+            this.numberOf100Yen -= (payment.total() - 100) / 100;
         }
 
-        if (kindOfDrink == Drink.COKE) {
-            this.quantityOfCoke--;
-        } else if (kindOfDrink == Drink.DIET_COKE) {
-            this.quantityOfDietCoke--;
+        if (kindOfDrink == DrinkList.COKE) {
+            this.quantityOfCoke = this.quantityOfCoke.reduce();
+        } else if (kindOfDrink == DrinkList.DIET_COKE) {
+            this.quantityOfDietCoke = this.quantityOfDietCoke.reduce();
         } else {
-            this.quantityOfTea--;
+            this.quantityOfTea = this.quantityOfTea.reduce();
         }
 
         return new Drink(kindOfDrink);
@@ -70,9 +111,9 @@ class VendingMachine {
 
     to_string(): string {
         return `
-        quantityOfCoke: \t${this.quantityOfCoke}
-        quantityOfDietCoke: \t${this.quantityOfDietCoke}
-        quantityOfTea: \t\t${this.quantityOfTea}
+        quantityOfCoke: \t${this.quantityOfCoke.to_string()}
+        quantityOfDietCoke: \t${this.quantityOfDietCoke.to_string()}
+        quantityOfTea: \t\t${this.quantityOfTea.to_string()}
         numberOf100Yen: \t${this.numberOf100Yen}
         charge: \t\t${this.charge}
         `;
@@ -81,8 +122,13 @@ class VendingMachine {
 
 
 const vendingMachine = new VendingMachine;
+
 console.log(vendingMachine.to_string());
 
-vendingMachine.buy(100, 1);
+vendingMachine.buy(new Payment(1, 0), DrinkList.COKE);
+
+console.log(vendingMachine.to_string());
+
+console.log(vendingMachine.refund());
 
 console.log(vendingMachine.to_string());
