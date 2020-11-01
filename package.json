@@ -1,0 +1,16 @@
+{
+  "name": "vending_machine",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "compile": "tsc main.ts",
+    "start": "npm run compile && node main.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "typescript": "^4.0.5"
+  }
+}
