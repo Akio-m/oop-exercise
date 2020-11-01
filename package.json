@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "compile": "tsc main.ts",
+    "compile": "tsc --target ES2017 main.ts",
     "start": "npm run compile && node main.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },

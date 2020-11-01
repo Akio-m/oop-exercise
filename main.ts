@@ -40,11 +40,12 @@ class Coin {
         if (this.kind == CoinList.FIVE_HANDRED) {
             return new Coin(CoinList.HANDRED, 4);
         }
-        return new Coin(this.kind, this.amount - 1);
+        return new Coin(this.kind, --this.amount);
     }
 
-    subtract(amount: number): Coin {
-        return new Coin(this.kind, this.amount - amount);
+    subtract(coin: Coin): Coin {
+        const sub = this.amount - coin.amount;
+        return new Coin(this.kind, sub);
     }
 
     total(): number {
@@ -91,8 +92,8 @@ class DrinkStock {
         return this.stock == 0;
     }
 
-    reduce(): DrinkStock{
-        return new DrinkStock(this.kind, this.stock - 1);
+    spend(): DrinkStock{
+        return new DrinkStock(this.kind, --this.stock);
     }
 
     to_string(): string {
@@ -100,39 +101,44 @@ class DrinkStock {
     }
 }
 
+class VendingStock {
+    private stock: DrinkStock[] = [];
+    constructor(quantityOfCoke: DrinkStock, quantityOfDietCoke: DrinkStock, quantityOfTea: DrinkStock) {
+        this.stock.push(quantityOfCoke);
+        this.stock.push(quantityOfDietCoke);
+        this.stock.push(quantityOfTea);
+    }
+
+    static prepareDrinkStock(cokeAmount: number, dietCokeAmount: number, teaAmaount: number): VendingStock {
+        return new VendingStock(
+            new DrinkStock(DrinkList.COKE, cokeAmount),
+            new DrinkStock(DrinkList.DIET_COKE, dietCokeAmount),
+            new DrinkStock(DrinkList.TEA, teaAmaount)
+        );
+    }
+
+    isEmptyBy(drink: DrinkList): boolean {
+        return this.stock.find(v => v.kind == drink).isEmpty();
+    }
+
+    spend(drink: DrinkList) {
+        this.stock.find(v => v.kind == drink).spend();
+    }
+
+    to_string(): string {
+        return this.stock.map(v => v.to_string()).join(", ");
+    }
+}
+
 
 
 class VendingMachine {
-    private quantityOfCoke = new DrinkStock(DrinkList.COKE, 5); // コーラの在庫数
-    private quantityOfDietCoke = new DrinkStock(DrinkList.DIET_COKE, 5); // ダイエットコーラの在庫数
-    private quantityOfTea = new DrinkStock(DrinkList.TEA, 5); // お茶の在庫数
+    private vendingStock = VendingStock.prepareDrinkStock(5, 5, 5);
     private numberOf100Yen = new Coin(CoinList.HANDRED, 10); // 100円玉の在庫
     private charge = new CoinMeck([]);
 
     buy(payment: Coin, kindOfDrink: DrinkList): Drink {
-        if ((payment.total() != CoinList.HANDRED) && (payment.total() != CoinList.FIVE_HANDRED)) {
-            this.charge.add(payment);
-            return null;
-        }
-
-        if ((kindOfDrink == DrinkList.COKE) && (this.quantityOfCoke.isEmpty())) {
-            this.charge.add(payment);
-            return null;
-        }
-
-        if ((kindOfDrink == DrinkList.COKE) && (this.quantityOfCoke.isEmpty())) {
-            this.charge.add(payment);
-            return null;
-        } else if ((kindOfDrink == DrinkList.DIET_COKE) && (this.quantityOfDietCoke.isEmpty())) {
-            this.charge.add(payment);
-            return null;
-        } else if ((kindOfDrink == DrinkList.TEA) && (this.quantityOfTea.isEmpty())) {
-            this.charge.add(payment);
-            return null;
-        }
-
-        // 釣り銭不足
-        if (this.canRefound(payment)) {
+        if (this.notAcceptCoin(payment) || this.vendingStock.isEmptyBy(kindOfDrink) || this.canRefound(payment)) {
             this.charge.add(payment);
             return null;
         }
@@ -142,17 +148,10 @@ class VendingMachine {
         } else if (payment.kind == CoinList.FIVE_HANDRED) {
             const paymentAfter = payment.decrement();
             this.charge.add(paymentAfter);
-            this.numberOf100Yen = this.numberOf100Yen.subtract(paymentAfter.amount);
+            this.numberOf100Yen = this.numberOf100Yen.subtract(paymentAfter);
         }
 
-        if (kindOfDrink == DrinkList.COKE) {
-            this.quantityOfCoke = this.quantityOfCoke.reduce();
-        } else if (kindOfDrink == DrinkList.DIET_COKE) {
-            this.quantityOfDietCoke = this.quantityOfDietCoke.reduce();
-        } else {
-            this.quantityOfTea = this.quantityOfTea.reduce();
-        }
-
+        this.vendingStock.spend(kindOfDrink);
         return new Drink(kindOfDrink);
     }
 
@@ -162,15 +161,17 @@ class VendingMachine {
         return result;
     }
 
+    private notAcceptCoin(payment: Coin): boolean {
+        return (payment.total() != CoinList.HANDRED) && (payment.total() != CoinList.FIVE_HANDRED);
+    }
+
     private canRefound(payment: Coin): boolean{
         return payment.kind == CoinList.FIVE_HANDRED && this.numberOf100Yen.amount < 4;
     }
 
     to_string(): string {
         return `
-        quantityOfCoke: \t${this.quantityOfCoke.to_string()}
-        quantityOfDietCoke: \t${this.quantityOfDietCoke.to_string()}
-        quantityOfTea: \t\t${this.quantityOfTea.to_string()}
+        quantityOf: \t${this.vendingStock.to_string()}
         numberOf100Yen: \t${this.numberOf100Yen.to_string()}
         charge: \t\t${this.charge.to_string()}
         `;
@@ -203,3 +204,15 @@ console.log(vendingMachine3.buy(new Coin(CoinList.HANDRED, 2), DrinkList.COKE) =
 console.log(vendingMachine3.to_string());
 console.log(vendingMachine3.refund());
 console.log(vendingMachine3.to_string());
+
+// お釣りがなくなるときに買えない
+console.log("100円や500円以外を入れると買えない");
+const vendingMachine4 = new VendingMachine;
+console.log(vendingMachine4.to_string());
+console.log(vendingMachine4.buy(new Coin(CoinList.FIVE_HANDRED, 1), DrinkList.COKE));
+console.log(vendingMachine4.refund());
+console.log(vendingMachine4.buy(new Coin(CoinList.FIVE_HANDRED, 1), DrinkList.COKE));
+console.log(vendingMachine4.refund());
+console.log(vendingMachine4.buy(new Coin(CoinList.FIVE_HANDRED, 1), DrinkList.COKE) == null);
+console.log(vendingMachine4.refund());
+console.log(vendingMachine4.to_string());
